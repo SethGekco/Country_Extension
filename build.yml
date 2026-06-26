@@ -1,0 +1,36 @@
+name: Build Country_Extension
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install ATL
+        shell: pwsh
+        run: |
+          $src14 = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231"
+          $dst14 = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.29.30133"
+          Copy-Item "$src14\atlmfc\include\*" "$dst14\include\" -Force
+          Copy-Item "$src14\atlmfc\lib\x86\atls.lib" "$dst14\lib\x86\" -Force
+          Write-Host "ATL headers and atls.lib copied"
+
+      - name: Build
+        run: msbuild Country_Extension.sln /p:Configuration=DevBuild /p:Platform=x86
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Country_Extension
+          path: DevBuild\Country_Extension.dll
