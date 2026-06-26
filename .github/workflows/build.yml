@@ -1,16 +1,13 @@
-name: Build KratosPP
+name: Build Country_Extension
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-  workflow_dispatch:  # allows manual trigger from the Actions tab
+    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -20,11 +17,20 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build
-        run: msbuild Kratos.sln /p:Configuration=Release /p:Platform=Win32
+      - name: Install ATL
+        shell: pwsh
+        run: |
+          $src14 = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.51.36231"
+          $dst14 = "C:\Program Files\Microsoft Visual Studio\18\Enterprise\VC\Tools\MSVC\14.29.30133"
+          Copy-Item "$src14\atlmfc\include\*" "$dst14\include\" -Force
+          Copy-Item "$src14\atlmfc\lib\x86\atls.lib" "$dst14\lib\x86\" -Force
+          Write-Host "ATL headers and atls.lib copied"
 
-      - name: Upload DLL artifact
+      - name: Build
+        run: msbuild Country_Extension.sln /p:Configuration=DevBuild /p:Platform=x86
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Kratos
-          path: Release/Kratos.dll
+          name: Country_Extension
+          path: DevBuild\Country_Extension.dll
