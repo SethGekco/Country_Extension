@@ -27,7 +27,7 @@ jobs:
           Write-Host "ATL headers and atls.lib copied"
 
       - name: Build
-        run: msbuild Country_Extension.sln /p:Configuration=DevBuild /p:Platform=x86
+        run: msbuild Country_Extension.sln /p:Configuration=DevBuild /p:Platform=Win32
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
