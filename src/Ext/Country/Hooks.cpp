@@ -25,7 +25,7 @@ DEFINE_HOOK(0x51214F, CountryTypeClass_ReadINI_Ext, 5)
 // EDI = SuperClass* pSW, ESI = RechargeTime (int, frames)
 // SuperClass field layout (SuperClass.h + disasm confirmed):
 //   +0x24 CustomChargeTime, +0x28 Type, +0x2c Owner, +0x30 RechargeTimer
-DEFINE_HOOK(0x6CC20C, SuperWeapon_Recharge_ApplyCountryRatio, 4)
+//DEFINE_HOOK(0x6CC20C, SuperWeapon_Recharge_ApplyCountryRatio, 4)
 {
     GET(SuperClass*,  pSW,          EDI);
     GET(int,          rechargeTime, ESI);
