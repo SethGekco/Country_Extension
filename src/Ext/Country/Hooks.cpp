@@ -21,15 +21,15 @@ DEFINE_HOOK(0x51214F, CountryTypeClass_ReadINI_Ext, 5)
 }
 
 // Hook 2 — SuperWeapon.Ratio=
-// FUN_006cc1e0, hook at 0x6CC20C (FILD — 4 bytes)
-// EDI = SuperClass* pSW, ESI = RechargeTime (int, frames)
-// SuperClass field layout (SuperClass.h + disasm confirmed):
-//   +0x24 CustomChargeTime, +0x28 Type, +0x2c Owner, +0x30 RechargeTimer
-//DEFINE_HOOK(0x6CC20C, SuperWeapon_Recharge_ApplyCountryRatio, 4)
+// TEMPORARILY DISABLED to isolate crash at 0x0052B766
+// Will re-enable once crash source is confirmed not to be Hook 2.
+/*
+DEFINE_HOOK(0x6CC20C, SuperWeapon_Recharge_ApplyCountryRatio, 4)
 {
     GET(SuperClass*,  pSW,          EDI);
     GET(int,          rechargeTime, ESI);
 
+    if (!pSW) return 0;
     HouseClass* pOwner = pSW->Owner;
 
     if (pOwner)
@@ -45,8 +45,9 @@ DEFINE_HOOK(0x51214F, CountryTypeClass_ReadINI_Ext, 5)
 
     return 0;
 }
+*/
 
-// Hook 3 — Inherit.SuperWeapon= (STUB, address not yet found)
+// Hook 3 — Inherit.SuperWeapon= (STUB)
 /*
 DEFINE_HOOK(0x00000000, HouseClass_UpdateSWAvailability_InheritGrant, 6)
 {
