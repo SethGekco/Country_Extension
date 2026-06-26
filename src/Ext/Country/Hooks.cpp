@@ -20,7 +20,7 @@
 #include <SuperWeaponTypeClass.h>
 #include <SuperClass.h>
 #include <CCINIClass.h>
-#include <Macros.h>
+#include <Helpers/Macro.h>
 
 DEFINE_HOOK(0x51214F, CountryTypeClass_ReadINI_Ext, 5)
 {
