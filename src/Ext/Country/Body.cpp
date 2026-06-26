@@ -1,95 +1,78 @@
-// CountryTypeExt — Body.cpp
-// Defines the ExtMap, LoadFromINI, and stream serialization for HouseTypeExt.
-
 #include "Body.h"
 
 #include <HouseClass.h>
-#include <CCINIClass.h>
+#include <Utilities/Debug.h>
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ExtMap instantiation
-// One ExtData per CountryTypeClass, keyed by pointer.
-// ─────────────────────────────────────────────────────────────────────────────
-ExtContainer HouseTypeExt::ExtMap;
+std::map<HouseTypeClass*, HouseTypeExt::ExtData*> HouseTypeExt::Map;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// INI loading
-// Called by the hook that intercepts CountryTypeClass::ReadINI (see Hooks.cpp).
-// pINI is the rules(md).ini file being parsed.
-// ─────────────────────────────────────────────────────────────────────────────
-void HouseTypeExt::ExtData::LoadFromINI(CCINIClass* pINI)
+HouseTypeExt::ExtData* HouseTypeExt::FindOrCreate(HouseTypeClass* pType)
 {
-    // The section name matches the country's INI ID, e.g. [Americans].
-    const char* pSection = this->OwnerObject()->ID;
+    if (!pType) return nullptr;
+    auto it = Map.find(pType);
+    if (it != Map.end()) return it->second;
+    auto* pExt = new ExtData();
+    Map[pType] = pExt;
+    return pExt;
+}
+
+HouseTypeExt::ExtData* HouseTypeExt::Find(HouseTypeClass* pType)
+{
+    if (!pType) return nullptr;
+    auto it = Map.find(pType);
+    return (it != Map.end()) ? it->second : nullptr;
+}
+
+void HouseTypeExt::ExtData::LoadFromINI(HouseTypeClass* pThis, CCINIClass* pINI)
+{
+    const char* pSection = pThis->ID;
     if (!pSection || !pINI->GetSection(pSection))
         return;
 
-    INI_EX exINI(pINI);
+    double ratio = pINI->ReadDouble(pSection, "SuperWeapon.Ratio", SW_RechargeRatio);
+    if (ratio > 0.0)
+        SW_RechargeRatio = ratio;
 
-    // SuperWeapon.Ratio=  (float, default 1.0)
-    // Values below 1.0 speed up recharging; above 1.0 slow it down.
-    // Clamped to > 0 at application time in the hook, not here.
-    SW_RechargeRatio.Read(exINI, pSection, "SuperWeapon.Ratio");
+    char buffer[256] = {};
+    if (pINI->ReadString(pSection, "Inherit.SuperWeapon", "", buffer, sizeof(buffer)) > 0)
+    {
+        InheritSuperWeapons.clear();
+        char* ctx = nullptr;
+        char* tok = strtok_s(buffer, ",", &ctx);
+        while (tok)
+        {
+            while (*tok == ' ') ++tok;
+            auto* pSWType = SuperWeaponTypeClass::Find(tok);
+            if (pSWType) InheritSuperWeapons.push_back(pSWType);
+            tok = strtok_s(nullptr, ",", &ctx);
+        }
+    }
 
-    // Inherit.SuperWeapon=  (list of SuperWeaponType IDs)
-    InheritSuperWeapons.Read(exINI, pSection, "Inherit.SuperWeapon");
+    char buffer2[256] = {};
+    if (pINI->ReadString(pSection, "Inherit.LimboObjects", "", buffer2, sizeof(buffer2)) > 0)
+    {
+        InheritLimboObjects.clear();
+        char* ctx = nullptr;
+        char* tok = strtok_s(buffer2, ",", &ctx);
+        while (tok)
+        {
+            while (*tok == ' ') ++tok;
+            auto* pBldType = BuildingTypeClass::Find(tok);
+            if (pBldType) InheritLimboObjects.push_back(pBldType);
+            tok = strtok_s(nullptr, ",", &ctx);
+        }
+    }
 
-    // Inherit.LimboObjects=  (list of BuildingType IDs)
-    // Parsed but not yet acted on; hook implementation is deferred.
-    InheritLimboObjects.Read(exINI, pSection, "Inherit.LimboObjects");
+    Debug::Log("[CountryExt] Loaded %s: SW.Ratio=%.2f InheritSW=%zu LimboObjects=%zu\n",
+        pSection, SW_RechargeRatio,
+        InheritSuperWeapons.size(), InheritLimboObjects.size());
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Save / load (savegame support)
-// ─────────────────────────────────────────────────────────────────────────────
-void HouseTypeExt::ExtData::LoadFromStream(PhobosStreamReader& Stm)
-{
-    Extension<HouseTypeClass>::LoadFromStream(Stm);
-    this->Serialize(Stm);
-}
-
-void HouseTypeExt::ExtData::SaveToStream(PhobosStreamWriter& Stm)
-{
-    Extension<HouseTypeClass>::SaveToStream(Stm);
-    this->Serialize(Stm);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Global save / load (called by the main save/load dispatch)
-// ─────────────────────────────────────────────────────────────────────────────
-bool HouseTypeExt::LoadGlobals(PhobosStreamReader& Stm)
-{
-    return Stm.Success();
-}
-
-bool HouseTypeExt::SaveGlobals(PhobosStreamWriter& Stm)
-{
-    return Stm.Success();
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// HouseTypeExt::GetSWRechargeRatio
-//
-// Safe accessor used by the SW timer hook in Hooks.cpp.
-// Walks: HouseClass -> Type (CountryTypeClass) -> ExtData -> SW_RechargeRatio.
-// Returns 1.0 if anything in that chain is null, so the hook degrades
-// gracefully for houses that have no country or no ext entry.
-// ─────────────────────────────────────────────────────────────────────────────
 double HouseTypeExt::GetSWRechargeRatio(HouseClass* pHouse)
 {
-    if (!pHouse)
-        return 1.0;
-
+    if (!pHouse) return 1.0;
     auto* pType = pHouse->Type;
-    if (!pType)
-        return 1.0;
-
-    auto* pExt = HouseTypeExt::ExtMap.Find(pType);
-    if (!pExt)
-        return 1.0;
-
-    // Guard against degenerate values: ratio must be strictly positive.
-    // A ratio of 0 would make RechargeTime = 0 → instant-fire every frame.
-    const double ratio = pExt->SW_RechargeRatio;
-    return (ratio > 0.0) ? ratio : 1.0;
+    if (!pType) return 1.0;
+    auto* pExt = Find(pType);
+    if (!pExt) return 1.0;
+    return (pExt->SW_RechargeRatio > 0.0) ? pExt->SW_RechargeRatio : 1.0;
 }
