@@ -4,7 +4,7 @@
 
 int GetSection(const char* sectionName, void** pVirtualAddress)
 {
-	auto hInstance = YRAggressiveStance::hInstance;
+	auto hInstance = CountryExtension::hInstance;
 	auto pHeader = reinterpret_cast<PIMAGE_NT_HEADERS>(((PIMAGE_DOS_HEADER)hInstance)->e_lfanew + (long)hInstance);
 
 	for (int i = 0; i < pHeader->FileHeader.NumberOfSections; i++)
