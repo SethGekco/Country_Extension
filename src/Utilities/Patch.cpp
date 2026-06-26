@@ -1,6 +1,6 @@
 #include "Patch.h"
 #include "Macro.h"
-#include <YRAggressiveStance.h>
+#include <CountryExtension.h>
 
 int GetSection(const char* sectionName, void** pVirtualAddress)
 {
